@@ -1,0 +1,9 @@
+{
+    "watch": [
+        "index.ts",
+        "server.ts",
+        "model.ts"
+    ],
+    "ext": "ts",
+    "exec": "npx tsc"
+}

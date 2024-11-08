@@ -18,15 +18,13 @@ export class Card {
     }
 
 
-    public static dealCardsToPlayers(): Card[][] {
+    public static dealCardsToPlayers(): Card[] {
         const deck = Deck.Default();
-        const hands: Card[][] = [];
+        const hands: Card[] = [];
 
-        const hand: Card[] = [];
         for (let i = 0; i < 5; i++) {
-            hand.push(deck.nextCard());
+            hands.push(deck.nextCard());
         }
-        hands.push(hand);
 
         return hands;
     }
@@ -61,6 +59,7 @@ export class Deck {
         return this._cards
     };
     public nextCard(): Card {
+        console.log(this._cards)
         const card = this._cards.pop();
         if (!card) throw "Out of Cards";
         return card;
@@ -78,7 +77,7 @@ export class Deck {
 export class Player {
     id: string;
     name: string;
-    hand: Card[][] = Card.dealCardsToPlayers();
+    hand: Card[] = Card.dealCardsToPlayers();
     alive: boolean = true;
 
     constructor(id: string, name: string, alive: boolean) {

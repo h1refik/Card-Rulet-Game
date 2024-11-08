@@ -1,13 +1,16 @@
-import { Socket } from "socket.io";
-import { Chair, Player, Room } from "./model";
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const socketIo = require("socket.io");
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import { Server, Socket } from 'socket.io';
+import { Player, Room } from './model.js';
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+  cors: {
+    origin: "*"
+  }
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -17,9 +20,6 @@ let rooms: Room[] = [];
 
 
 io.on("connection", (socket: Socket) => {
-  console.log(`User connected: ${socket.id}`);
-
-  // Event for creating a new room
   socket.on("createRoom", async (playerName: string) => {
     const newRoom = new Room();
 
@@ -30,13 +30,13 @@ io.on("connection", (socket: Socket) => {
     await socket.join(newRoom.id);
     io.to(newRoom.id).emit(
       "playerJoined",
-      newRoom.chairs.flatMap(p => { return p.player }).filter(p => p != undefined).map((player) => player.name)
+      newRoom.chairs.filter(p => p.player).flatMap(p => { return p.player })
     );
     socket.emit("roomCreated", newRoom.id);
   });
 
   // Event for joining an existing room
-  socket.on("joinRoom", (roomId, playerName) => {
+  socket.on("joinRoom", (roomId: string, playerName: string) => {
     var room = rooms.find((room) => room.id === roomId);
     var players = room!.chairs.filter(p => p.player).flatMap(p => p.player);
     if (room && !room.gameStarted && players.length < 4) {
@@ -46,7 +46,7 @@ io.on("connection", (socket: Socket) => {
       socket.join(roomId);
       io.to(roomId).emit(
         "playerJoined",
-        players.map((player) => player!.name)
+        players
       );
     } else {
       socket.emit("invalidRoom");
@@ -54,18 +54,14 @@ io.on("connection", (socket: Socket) => {
   });
 
   // Event to start the game in the room
-  socket.on("startGame", (roomId) => {
-    const room = rooms.find((room) => room.id === roomId);
-    var players = room!.chairs.flatMap(p => p.player);
+  socket.on("startGame", (roomId: string) => {
+    const room = rooms.find((room) => room.id == roomId);
+    var players = room!.chairs.filter(p => p.player).flatMap(p => p.player);
     if (room) {
-      if (players.length >= 2) {
+      if (players.length >= 4) {
         room.currentTurn = players[0]!;
         room.gameStarted = true;
-        io.to(roomId).emit("gameStarted", {
-          selectedCardType: room.selectedCardType,
-          players: players,
-          startingPlayer: room.currentTurn,
-        });
+        io.to(roomId).emit("gameStarted", room.selectedCardType, players, room.currentTurn);
       }
     }
   });
@@ -87,11 +83,9 @@ io.on("connection", (socket: Socket) => {
   //       player.hasClaimed = true; // Mark the player as having made a claim
   //       selectedCards.forEach((card) => {
   //         const index = player.cards.indexOf(card);
-  //         console.log(index, card);
   //         if (index !== -1) {
   //           player.cards.splice(index, 1);
   //         }
-  //         console.log(player.cards);
   //       });
   //     }
 
@@ -110,11 +104,10 @@ io.on("connection", (socket: Socket) => {
   //       (card) => card.includes(room.selectedCardType) || card.includes("Joker")
   //     );
 
-  //     console.log(lastClaim.cards);
-
-  //     const loserId = correct ? socket.id : lastClaim.playerId;
-  //     room.players = room.players.filter((player) => player.id !== loserId);
-  //     io.to(room.roomId).emit("playerShot", loserId);
+  //     const eliminatedId = correct ? socket.id : lastClaim.playerId;
+  //     room.players = room.players.filter((player: Player) => player.id !== eliminatedId);
+  //     const eliminatedPlayer = room.players.find((player: Player) => player.id == eliminatedId);
+  //     io.to(room.roomId).emit("playerShot", eliminatedPlayer);
 
   //     if (room.players.length > 1) {
   //       advanceTurn(room);
@@ -161,8 +154,8 @@ io.on("connection", (socket: Socket) => {
   //   const currentPlayerIndex = alivePlayers.findIndex(
   //     (player) => player.id === room.currentTurn
   //   );
-  //   room.previousPlayerId =
-  //     alivePlayers[currentPlayerIndex % alivePlayers.length]?.id;
+  //   room.previousPlayer =
+  //     alivePlayers[currentPlayerIndex % alivePlayers.length];
   //   room.currentTurn =
   //     alivePlayers[(currentPlayerIndex + 1) % alivePlayers.length].id;
 
@@ -171,8 +164,8 @@ io.on("connection", (socket: Socket) => {
   //     "nextTurn",
   //     room.currentTurn,
   //     alivePlayers,
-  //     room.previousPlayerId,
-  //     room.players.find((player) => player.id === room.previousPlayerId)
+  //     room.previousPlayer,
+  //     room.players.find((player) => player.id === room.previousPlayer)
   //       ?.hasClaimed // Pass previous player's claim status
   //   );
   // }
@@ -184,7 +177,6 @@ io.on("connection", (socket: Socket) => {
       players: room!.chairs.flatMap(p => p.player).filter((player) => player?.id != socket.id),
     }));
     rooms = rooms.filter((room) => room!.chairs.flatMap(p => p.player).length > 0);
-    console.log(`User disconnected: ${socket.id}`);
   });
 });
 

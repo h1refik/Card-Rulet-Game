@@ -1,4 +1,3 @@
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -8,29 +7,30 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const model_1 = require("./model");
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const socketIo = require("socket.io");
+import express from 'express';
+import http from 'http';
+import cors from 'cors';
+import { Server } from 'socket.io';
+import { Player, Room } from './model.js';
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, { cors: { origin: "*" } });
+const io = new Server(server, {
+    cors: {
+        origin: "*"
+    }
+});
 const PORT = process.env.PORT || 3000;
 app.use(cors());
 let rooms = [];
 io.on("connection", (socket) => {
-    console.log(`User connected: ${socket.id}`);
-    // Event for creating a new room
     socket.on("createRoom", (playerName) => __awaiter(void 0, void 0, void 0, function* () {
-        const newRoom = new model_1.Room();
-        const newPlayer = new model_1.Player(socket.id, playerName, true);
+        const newRoom = new Room();
+        const newPlayer = new Player(socket.id, playerName, true);
         newRoom.chairs.filter(p => !p.player)[0].sit(newPlayer);
         newRoom.currentTurn = newPlayer;
         rooms.push(newRoom);
         yield socket.join(newRoom.id);
-        io.to(newRoom.id).emit("playerJoined", newRoom.chairs.flatMap(p => { return p.player; }).filter(p => p != undefined).map((player) => player.name));
+        io.to(newRoom.id).emit("playerJoined", newRoom.chairs.filter(p => p.player).flatMap(p => { return p.player; }));
         socket.emit("roomCreated", newRoom.id);
     }));
     // Event for joining an existing room
@@ -38,11 +38,11 @@ io.on("connection", (socket) => {
         var room = rooms.find((room) => room.id === roomId);
         var players = room.chairs.filter(p => p.player).flatMap(p => p.player);
         if (room && !room.gameStarted && players.length < 4) {
-            const newPlayer = new model_1.Player(socket.id, playerName, true);
+            const newPlayer = new Player(socket.id, playerName, true);
             room.chairs.filter(p => !p.player)[0].sit(newPlayer);
             players.push(newPlayer);
             socket.join(roomId);
-            io.to(roomId).emit("playerJoined", players.map((player) => player.name));
+            io.to(roomId).emit("playerJoined", players);
         }
         else {
             socket.emit("invalidRoom");
@@ -50,17 +50,13 @@ io.on("connection", (socket) => {
     });
     // Event to start the game in the room
     socket.on("startGame", (roomId) => {
-        const room = rooms.find((room) => room.id === roomId);
-        var players = room.chairs.flatMap(p => p.player);
+        const room = rooms.find((room) => room.id == roomId);
+        var players = room.chairs.filter(p => p.player).flatMap(p => p.player);
         if (room) {
-            if (players.length >= 2) {
+            if (players.length >= 4) {
                 room.currentTurn = players[0];
                 room.gameStarted = true;
-                io.to(roomId).emit("gameStarted", {
-                    selectedCardType: room.selectedCardType,
-                    players: players,
-                    startingPlayer: room.currentTurn,
-                });
+                io.to(roomId).emit("gameStarted", room.selectedCardType, players, room.currentTurn);
             }
         }
     });
@@ -80,11 +76,9 @@ io.on("connection", (socket) => {
     //       player.hasClaimed = true; // Mark the player as having made a claim
     //       selectedCards.forEach((card) => {
     //         const index = player.cards.indexOf(card);
-    //         console.log(index, card);
     //         if (index !== -1) {
     //           player.cards.splice(index, 1);
     //         }
-    //         console.log(player.cards);
     //       });
     //     }
     //     advanceTurn(room);
@@ -100,10 +94,10 @@ io.on("connection", (socket) => {
     //     const correct = lastClaim.cards.every(
     //       (card) => card.includes(room.selectedCardType) || card.includes("Joker")
     //     );
-    //     console.log(lastClaim.cards);
-    //     const loserId = correct ? socket.id : lastClaim.playerId;
-    //     room.players = room.players.filter((player) => player.id !== loserId);
-    //     io.to(room.roomId).emit("playerShot", loserId);
+    //     const eliminatedId = correct ? socket.id : lastClaim.playerId;
+    //     room.players = room.players.filter((player: Player) => player.id !== eliminatedId);
+    //     const eliminatedPlayer = room.players.find((player: Player) => player.id == eliminatedId);
+    //     io.to(room.roomId).emit("playerShot", eliminatedPlayer);
     //     if (room.players.length > 1) {
     //       advanceTurn(room);
     //     } else {
@@ -142,8 +136,8 @@ io.on("connection", (socket) => {
     //   const currentPlayerIndex = alivePlayers.findIndex(
     //     (player) => player.id === room.currentTurn
     //   );
-    //   room.previousPlayerId =
-    //     alivePlayers[currentPlayerIndex % alivePlayers.length]?.id;
+    //   room.previousPlayer =
+    //     alivePlayers[currentPlayerIndex % alivePlayers.length];
     //   room.currentTurn =
     //     alivePlayers[(currentPlayerIndex + 1) % alivePlayers.length].id;
     //   // Notify players of the next turn and the previous player's claim status
@@ -151,8 +145,8 @@ io.on("connection", (socket) => {
     //     "nextTurn",
     //     room.currentTurn,
     //     alivePlayers,
-    //     room.previousPlayerId,
-    //     room.players.find((player) => player.id === room.previousPlayerId)
+    //     room.previousPlayer,
+    //     room.players.find((player) => player.id === room.previousPlayer)
     //       ?.hasClaimed // Pass previous player's claim status
     //   );
     // }
@@ -160,7 +154,6 @@ io.on("connection", (socket) => {
     socket.on("disconnect", () => {
         rooms = rooms.map((room) => (Object.assign(Object.assign({}, room), { players: room.chairs.flatMap(p => p.player).filter((player) => (player === null || player === void 0 ? void 0 : player.id) != socket.id) })));
         rooms = rooms.filter((room) => room.chairs.flatMap(p => p.player).length > 0);
-        console.log(`User disconnected: ${socket.id}`);
     });
 });
 server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

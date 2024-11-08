@@ -1,329 +1,226 @@
-import { io } from "https://cdn.socket.io/4.5.4/socket.io.esm.min.js";
-import * as THREE from "three"; // Import Three.js
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js"; // Import the GLTFLoader
-
-const socket = io("http://192.168.12.14:3000");
-
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var _a, _b;
+import { io } from 'socket.io-client';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+const socket = io("http://localhost:3000");
 let isRoomCreator = false;
-let currentTurn = null;
-let myId = null;
+let currentTurn;
 let myCards = [];
-
+let mainMenuSection = document.getElementById('main-menu');
+let waitingPageSection = document.getElementById('waiting-page');
+let roomIdSection = document.getElementById('room-id');
+let startGameBtn = document.getElementById("start-game");
+let playersListSection = document.getElementById("players-list");
+let gameStatus = document.getElementById("game-status");
+const cards = ['King', 'Queen', 'Ace', 'Joker'];
 window.onbeforeunload = () => {
-  localStorage.removeItem("roomId");
+    localStorage.removeItem("roomId");
 };
-
 function checkWinCondition() {
-  if (myCards.length === 0) {
-    // If my cards are finished, declare victory
-    alert("You have won the game!");
-    window.localStorage.removeItem("roomId");
-    window.location.href = "/index.html"; // Redirect to start page
-  }
-}
-
-// Room creation and joining
-document.getElementById("create-server").onclick = () => {
-  var playerName = document.getElementById('player-name').value;
-  socket.emit("createRoom", playerName);
-  isRoomCreator = true;
-};
-
-document.getElementById("connect-server").onclick = () => {
-  const roomId = prompt("Enter room ID:");
-  if (roomId != null) {
-    var playerName = document.getElementById('player-name').value;
-    socket.emit("joinRoom", roomId, playerName);
-    isRoomCreator = false;
-  }
-};
-
-// Setting up the game once started
-socket.on("roomCreated", (roomId) => {
-  document.getElementById("main-menu").style.display = "none";
-  document.getElementById("waiting-page").style.display = "block";
-  document.getElementById("room-id").innerText = `Room Id: ${roomId}`;
-  localStorage.setItem("roomId", roomId);
-  if (!isRoomCreator)
-    document.getElementById("start-game").style.display = "none";
-});
-
-socket.on("playerJoined", (playersList) => {
-  document.getElementById("main-menu").style.display = "none";
-  document.getElementById("waiting-page").style.display = "block";
-  document.getElementById(
-    "players-list"
-  ).innerText = `Players: ${playersList.join(", ")}`;
-  if (!isRoomCreator)
-    document.getElementById("start-game").style.display = "none";
-});
-
-document.getElementById("start-game").onclick = () => {
-  const roomId = localStorage.getItem("roomId");
-  socket.emit("startGame", roomId);
-};
-
-// Game started event handler
-
-socket.on("gameStarted", ({ selectedCardType, players, startingPlayer }) => {
-  // document.getElementById("waiting-page").style.display = "none";
-  // document.getElementById("game-page").style.display = "block";
-  // document.getElementById("selected-card-type").innerText = selectedCardType;
-  // document.getElementById("challenge-claim").disabled = true;
-  // // Identify player ID and display their cards
-  // myId = socket.id;
-  // const player = players.find((p) => p.id === myId);
-  // myCards = player ? player.cards : [];
-  // populateCardSelect(myCards);
-  // document.getElementById("myId").innerText = myId;
-  // // Set the current turn
-  // currentTurn = startingPlayer;
-  // updateTurnStatus();
-  // Submit claim handler
-  // document.getElementById("submit-claim").onclick = () => {
-  //   const selectedOptions = Array.from(
-  //     document.getElementById("claim-cards").selectedOptions
-  //   );
-  //   const claimCount = selectedOptions.length;
-  //   const claim = `${claimCount} ${
-  //     document.getElementById("selected-card-type").innerText
-  //   }`;
-  //   const selectedCards = selectedOptions.map((option) => option.value);
-  //   socket.emit("submitClaim", { claim, selectedCards });
-  //   const updateMyCards = new Promise((resolve) => {
-  //     selectedCards.forEach((card) => {
-  //       const index = myCards.indexOf(card);
-  //       console.log(index, card);
-  //       if (index !== -1) {
-  //         myCards.splice(index, 1);
-  //       }
-  //     });
-  //     resolve();
-  //   });
-  //   // After promise resolves, call populateCardSelect
-  // updateMyCards.then(() => {
-  //   populateCardSelect(myCards);
-  // });
-});
-
-// Claim submitted event handler
-socket.on("claimSubmitted", ({ playerId, claim }) => {
-  const gameStatus = document.getElementById("game-status");
-  gameStatus.innerText += `${playerId} claimed ${claim}.\n`;
-});
-
-// document.getElementById("challenge-claim").onclick = () => {
-//   socket.emit("challengeClaim");
-//   document.getElementById("challenge-claim").disabled = true;
-// };
-
-socket.on(
-  "nextTurn",
-  (nextPlayerId, players, previousPlayerId, previousPlayerClaimed) => {
-    currentTurn = nextPlayerId;
-    const isMyTurn = currentTurn === myId;
-
-    // Find the previous player
-    const previousPlayer = players.find(
-      (player) => player.id === previousPlayerId && player.id != myId
-    );
-
-    // Enable challenge claim only if previous player has submitted a claim and it’s your turn
-    document.getElementById("challenge-claim").disabled =
-      !previousPlayer || !previousPlayerClaimed || !isMyTurn;
-
-    updateTurnStatus();
-
-    if (isMyTurn) {
-      checkWinCondition();
+    if (myCards.length === 0) {
+        alert("You have won the game!");
+        window.localStorage.removeItem("roomId");
+        window.location.href = "/index.html";
     }
-  }
-);
-
-socket.on("playerShot", (playerId) => {
-  const gameStatus = document.getElementById("game-status");
-  gameStatus.innerText += `${playerId} has been eliminated!\n`;
-  if (playerId === myId) {
-    window.localStorage.removeItem("roomId");
-    alert("You have been eliminated.");
-    window.location.href = "/index.html"; // Redirect if the player is eliminated
-  } else {
+}
+(_a = document.getElementById("create-server")) === null || _a === void 0 ? void 0 : _a.addEventListener('click', () => {
+    var playerInput = document.getElementById("player-name");
+    socket.emit("createRoom", playerInput.value);
+    isRoomCreator = true;
+});
+(_b = document.getElementById("connect-server")) === null || _b === void 0 ? void 0 : _b.addEventListener('click', () => {
+    const roomId = prompt("Enter room ID:");
+    if (roomId != null) {
+        var playerInput = document.getElementById("player-name");
+        socket.emit("joinRoom", roomId, playerInput.value);
+        isRoomCreator = false;
+    }
+});
+socket.on("roomCreated", (roomId) => {
+    mainMenuSection.style.display = "none";
+    waitingPageSection.style.display = "block";
+    roomIdSection.innerText = `Room Id: ${roomId}`;
+    localStorage.setItem("roomId", roomId);
+    if (!isRoomCreator)
+        startGameBtn.style.display = "none";
+});
+socket.on("playerJoined", (playersList) => {
+    const playerNames = playersList.map(p => p.name);
+    mainMenuSection.style.display = "none";
+    waitingPageSection.style.display = "block";
+    if (playersList.length >= 4) {
+        startGameBtn.classList.remove("disabled");
+    }
+    playersListSection.innerText = `Players: ${playerNames.join(", ")}`;
+    if (!isRoomCreator)
+        startGameBtn.style.display = "none";
+});
+startGameBtn.onclick = () => {
     const roomId = localStorage.getItem("roomId");
     socket.emit("startGame", roomId);
-  }
+};
+socket.on("gameStarted", (selectedCardType, players, currentTun) => {
+    let playersSorted = players;
+    const currentPlayerIndex = playersSorted.findIndex(player => player.id === socket.id);
+    const [currentPlayer] = playersSorted.splice(currentPlayerIndex, 1);
+    playersSorted.unshift(currentPlayer);
+    initGame(playersSorted, selectedCardType);
 });
-
-// Helper functions for updating UI and selecting cards
-// function populateCardSelect(cards) {
-//   const claimCards = document.getElementById("claim-cards");
-//   claimCards.innerHTML = "";
-//   cards.forEach((card, index) => {
-//     card
-//   });
-// }
-
+// socket.on("claimSubmitted", (playerId: string, claim) => {
+//   gameStatus.innerText += `${playerId} claimed ${claim}.\n`;
+// });
+socket.on("nextTurn", (currentTurn, players, previousPlayer) => {
+    currentTurn = currentTurn;
+    const isMyTurn = currentTurn.id === socket.id;
+    const getPreviousPlayer = players.find((player) => player.id === previousPlayer.id && player.id != socket.id);
+    // document.getElementById("challenge-claim").disabled =
+    //   !getPreviousPlayer || !previousPlayerClaimed || !isMyTurn;
+    updateTurnStatus();
+    if (isMyTurn) {
+        checkWinCondition();
+    }
+});
+socket.on("playerShot", (player) => {
+    gameStatus.innerText += `${player.name} has been eliminated!\n`;
+    if (player.id === socket.id) {
+        window.localStorage.removeItem("roomId");
+        alert("You have been eliminated.");
+        window.location.href = "/index.html";
+    }
+    else {
+        const roomId = localStorage.getItem("roomId");
+        socket.emit("startGame", roomId);
+    }
+});
 function updateTurnStatus() {
-  const isMyTurn = currentTurn === myId;
-  document.getElementById("current-turn").innerText = currentTurn;
-  document.getElementById("submit-claim").disabled = !isMyTurn;
+    const isMyTurn = currentTurn.id === socket.id;
+    // document.getElementById("current-turn").innerText = currentTurn.id;
+    // document.getElementById("submit-claim").disabled = !isMyTurn;
 }
-
+initGame([
+    { "hand": [{ "suit": 2 }, { "suit": 2 }, { "suit": 2 }, { "suit": 1 }, { "suit": 2 }], "alive": true, "id": "rPy9xr_Hs24pJXX2AAAE", "name": "Mehmet" },
+    { "hand": [{ "suit": 1 }, { "suit": 3 }, { "suit": 1 }, { "suit": 1 }, { "suit": 0 }], "alive": true, "id": "SaYwX9sIWISFq4aKAAAF", "name": "Ahmet" },
+    { "hand": [{ "suit": 0 }, { "suit": 3 }, { "suit": 1 }, { "suit": 1 }, { "suit": 1 }], "alive": true, "id": "_KuOdB3YQPO3Yb8GAAAH", "name": "Muhammed" },
+    { "hand": [{ "suit": 0 }, { "suit": 1 }, { "suit": 2 }, { "suit": 1 }, { "suit": 1 }], "alive": true, "id": "w-8B2Q5FOpGjXKo0AAAG", "name": "Taha" }
+], { suit: 2 });
 function initGame(players, currentCartType) {
-  document.getElementById("main-menu").style.display = "none";
-  document.getElementById("waiting-page").style.display = "none";
-
-  var container = document.querySelector(".game-container");
-
-  container.style.display = "block";
-
-  let camera, scene, renderer;
-  let core;
-
-  // environment
-  camera = new THREE.PerspectiveCamera(
-    50,
-    window.innerWidth / window.innerHeight,
-    1,
-    100
-  );
-  camera.position.set(0, 2, 2);
-  camera.rotation.set(0, 0, 0);
-
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0xffffff);
-
-  // lights
-  const ambient = new THREE.HemisphereLight(0xffffff, 0xbfd4d2, 3);
-  scene.add(ambient);
-
-  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.3);
-  directionalLight.position.set(1, 4, 3).multiplyScalar(3);
-  directionalLight.castShadow = true;
-  directionalLight.shadow.mapSize.setScalar(2048);
-  scene.add(directionalLight);
-
-  // renderer
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setAnimationLoop(animate);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  document.body.appendChild(renderer.domElement);
-
-  var loader = new GLTFLoader();
-  // loader.load('./assets/table.glb', (glb) => {
-  //   var model = glb.scene;
-  //   model.position.set(0, 0, 0)
-  //   scene.add(model)
-  // })
-  const playerPositions = [
-    { x: 0, y: -0.5, z: -5, rotation: 0 }, // Bottom position (Player 1)
-    { x: 5, y: 1.5, z: -5, rotation: 60 }, // Left position (Player 2)
-    { x: 0, y: 3.5, z: -5, rotation: 60 }, // Right position (Player 4)
-    { x: -5, y: 1.5, z: -5, rotation: 60 }, // Top position (Player 3)
-  ];
-  const raycaster = new THREE.Raycaster();
-  const mouse = new THREE.Vector2();
-  let hoveredCardIndex = null;
-  
-  // Function to handle mouse movement
-  function onMouseMove(event) {
-    // Convert mouse coordinates to normalized device coordinates (-1 to +1)
-    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    // Calculate objects intersecting the picking ray
-    raycaster.setFromCamera(mouse, camera);
-    const intersects = raycaster.intersectObjects(scene.children, true); // Assuming all cards are added to the scene
-
-    // Reset hovered card index
-    hoveredCardIndex = null;
-
-    
-    if (intersects.length > 0) {
-      // Check if the intersected object is a card
-      for (let i = 0; i < intersects.length; i++) {
-        const intersectedObject = intersects[i].object;
-        console.log(intersectedObject)
-        if (intersectedObject.userData.isCard) {
-          // Assuming cards have userData.isCard set to true
-          hoveredCardIndex = intersectedObject.userData.cardIndex; // Store the index of the hovered card
-          onCardHover(hoveredCardIndex); // Call the hover function
-          break; // Exit after the first card found
+    return __awaiter(this, void 0, void 0, function* () {
+        mainMenuSection.style.display = "none";
+        waitingPageSection.style.display = "none";
+        var container = document.querySelector(".game-container");
+        container.style.display = "block";
+        let camera, scene, renderer;
+        camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 100);
+        camera.position.set(0, 2, 2);
+        camera.rotation.set(0, 0, 0);
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+        const ambient = new THREE.HemisphereLight(0xffffff, 0xbfd4d2, 3);
+        scene.add(ambient);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        directionalLight.position.set(1, 4, 3).multiplyScalar(3);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.setScalar(2048);
+        scene.add(directionalLight);
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setAnimationLoop(animate);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+        var loader = new GLTFLoader();
+        const playerPositions = [
+            { x: 0, y: -0.5, z: -5 }, // Bottom position (Player 1)
+            { x: 5, y: 1.5, z: -5 }, // Left position (Player 2)
+            { x: 0, y: 3.5, z: -5 }, // Right position (Player 4)
+            { x: -5, y: 1.5, z: -5 }, // Top position (Player 3)
+        ];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredCardIndex;
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            hoveredCardIndex = 0;
+            if (intersects.length > 0) {
+                for (let i = 0; i < intersects.length; i++) {
+                    const intersectedObject = intersects[i].object;
+                    if (intersectedObject.userData.isCard) {
+                        hoveredCardIndex = intersectedObject.userData.cardIndex;
+                        //CardHover
+                        break;
+                    }
+                }
+            }
+            updateCardPositions();
         }
-      }
-    }
-
-    // Update card positions based on hover state (if needed)
-    updateCardPositions();
-  }
-
-  // Function to update card positions (optional)
-  function updateCardPositions() {
-    // You may want to refresh the positions of all cards based on the hovered state
-    // This can be done inside the loading loop if necessary
-  }
-
-  // Set up event listener for mouse movement
-  window.addEventListener("mousemove", onMouseMove, false);
-
-  // When loading each card model, set userData to identify it
-  for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
-    var player = players[playerIndex];
-    var itsMe = player.id == "xhIzCj8YkKjvqZzxAABK";
-    const position = itsMe ? playerPositions[0] : playerPositions[playerIndex];
-    const cardWidth = itsMe ? 0.4 : 0.25; // Adjust for desired width
-    const cardThickness = 0.2; // Adjust for desired height
-    const cardHeight = itsMe ? 0.4 : 0.2;
-
-    for (let cardIndex = 0; cardIndex < player.cards.length; cardIndex++) {
-      var card = player.cards[cardIndex];
-
-      loader.load(`./assets/${itsMe ? card : currentCartType}.glb`, (glb) => {
-        const model = glb.scene;
-        // Set user data to identify the card
-        model.userData.isCard = true; // Mark it as a card
-        model.userData.cardIndex = cardIndex; // Store the index of the card
-       
-        console.log(model.userData)
-
-        // Set the position of each card (with z offset logic if applicable)
-        const zOffset = hoveredCardIndex === cardIndex ? 0.2 : 0; // Adjust the z offset when hovered
-        model.position.set(
-          position.x,
-          position.y,
-          position.z - cardIndex * cardHeight + zOffset // Apply z offset for hovered card
-        );
-
-        var angelY = 60;
-
-        const angle = Math.PI / 2; // 90 degrees in radians
-        model.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), angle);
-        model.rotation.set(
-          model.rotation.x,
-          THREE.MathUtils.degToRad(angelY - (30 * cardIndex)),
-          model.rotation.z + position.rotation
-        );
-        model.scale.set(cardWidth, cardThickness, cardHeight);
-
-        // Rest of your card setup code...
-        scene.add(model);
-      });
-    }
-  }
-
-  window.addEventListener("resize", onWindowResize);
-  onWindowResize();
-
-  function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  }
-
-  function animate() {
-    renderer.render(scene, camera);
-  }
+        function updateCardPositions() { }
+        window.addEventListener("mousemove", onMouseMove, false);
+        for (let playerIndex = 0; playerIndex < players.length; playerIndex++) {
+            var player = players[playerIndex];
+            var itsMe = player.id == "rPy9xr_Hs24pJXX2AAAE";
+            const position = itsMe ? playerPositions[0] : playerPositions[playerIndex];
+            const cardWidth = itsMe ? 0.4 : 0.3;
+            const cardThickness = 0.2;
+            const cardHeight = itsMe ? 0.4 : 0.3;
+            for (let cardIndex = 0; cardIndex < player.hand.length; cardIndex++) {
+                var card = player.hand[cardIndex];
+                const cardType = itsMe ? cards[card.suit] : cards[currentCartType.suit];
+                yield loader.load(`./assets/${cardType}.glb`, (glb) => {
+                    var model = glb.scene;
+                    model.userData.isCard = true;
+                    model.userData.cardIndex = cardIndex;
+                    console.log(cardIndex);
+                    const zOffset = hoveredCardIndex === cardIndex ? 0.2 : 0;
+                    model.position.set(position.x, position.y, position.z - cardIndex * cardHeight + zOffset);
+                    const angle = Math.PI / 2;
+                    model.rotateOnWorldAxis(new THREE.Vector3(1, 0, 0), angle);
+                    // Set the rotation of the card based on player positions
+                    let cardRotation = 0;
+                    let cardRotationY = 0;
+                    if (playerIndex === 0) { // Player 1
+                        cardRotation = 0; // Face to Player 3
+                        cardRotationY = 40; // Face to Player 3
+                    }
+                    else if (playerIndex === 1) { // Player 2
+                        cardRotation = -90; // Face to Player 4
+                        cardRotationY = 30;
+                    }
+                    else if (playerIndex === 2) { // Player 3
+                        cardRotation = 180; // Face to Player 1
+                        cardRotationY = 60;
+                    }
+                    else if (playerIndex === 3) { // Player 4
+                        cardRotation = 90; // Face to Player 4
+                        cardRotationY = 10;
+                    }
+                    model.rotation.set((model.rotation.x), (THREE.MathUtils.degToRad(cardRotationY - (10 * cardIndex))), (THREE.MathUtils.degToRad(cardRotation - (cardIndex))));
+                    model.scale.set(cardWidth, cardThickness, cardHeight);
+                    scene.add(model);
+                });
+            }
+        }
+        window.addEventListener("resize", onWindowResize);
+        onWindowResize();
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        function animate() {
+            renderer.render(scene, camera);
+        }
+    });
 }

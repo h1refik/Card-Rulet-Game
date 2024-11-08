@@ -1,14 +1,11 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Room = exports.Chair = exports.Player = exports.Deck = exports.Card = exports.Suits = void 0;
-var Suits;
+export var Suits;
 (function (Suits) {
     Suits[Suits["King"] = 0] = "King";
     Suits[Suits["Queen"] = 1] = "Queen";
     Suits[Suits["Ace"] = 2] = "Ace";
     Suits[Suits["Joker"] = 3] = "Joker";
-})(Suits || (exports.Suits = Suits = {}));
-class Card {
+})(Suits || (Suits = {}));
+export class Card {
     constructor(suit) {
         this.suit = suit;
     }
@@ -19,16 +16,13 @@ class Card {
     static dealCardsToPlayers() {
         const deck = Deck.Default();
         const hands = [];
-        const hand = [];
         for (let i = 0; i < 5; i++) {
-            hand.push(deck.nextCard());
+            hands.push(deck.nextCard());
         }
-        hands.push(hand);
         return hands;
     }
 }
-exports.Card = Card;
-class Deck {
+export class Deck {
     constructor() {
         this._cards = [];
     }
@@ -54,6 +48,7 @@ class Deck {
     }
     ;
     nextCard() {
+        console.log(this._cards);
         const card = this._cards.pop();
         if (!card)
             throw "Out of Cards";
@@ -66,8 +61,7 @@ class Deck {
             .map(({ val }) => val);
     }
 }
-exports.Deck = Deck;
-class Player {
+export class Player {
     constructor(id, name, alive) {
         this.hand = Card.dealCardsToPlayers();
         this.alive = true;
@@ -76,8 +70,7 @@ class Player {
         this.alive = alive;
     }
 }
-exports.Player = Player;
-class Chair {
+export class Chair {
     sit(player) {
         this._player = player;
     }
@@ -89,8 +82,7 @@ class Chair {
     }
     ;
 }
-exports.Chair = Chair;
-class Room {
+export class Room {
     constructor() {
         this.id = Math.random().toString(36).substring(2, 6);
         this.gameStarted = false;
@@ -99,4 +91,3 @@ class Room {
         this.selectedCardType = Card.cardType();
     }
 }
-exports.Room = Room;
